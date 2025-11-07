@@ -61,6 +61,11 @@ macro_rules! parser_err {
     };
 }
 
+
+pub mod cypher; ///. I added this
+
+
+
 #[cfg(feature = "std")]
 /// Implementation [`RecursionCounter`] if std is available
 mod recursion {
