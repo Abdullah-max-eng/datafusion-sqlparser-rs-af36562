@@ -58,12 +58,27 @@ pub fn cypher_to_sql_text(cypher: &str) -> CypherResult<String> {
     Err(CypherError::Unsupported(s.to_string()))
 }
 
-/// Stage B: Parse provisional SQL via repo parser → AST.
+
+
+
+
+
 pub fn cypher_to_sql_ast(cypher: &str) -> CypherResult<Vec<Statement>> {
     let sql = cypher_to_sql_text(cypher)?;
     let dialect = MySqlDialect {};
-    Parser::parse_sql(&dialect, &sql).map_err(|e| CypherError::Parse(e.to_string()))
+    let mut out: Vec<Statement> = Vec::new();
+
+    // Parse each statement separately so multi-stmt strings work reliably
+    for part in sql.split(';') {
+        let stmt = part.trim();
+        if stmt.is_empty() { continue; }
+        let mut v = Parser::parse_sql(&dialect, stmt)
+            .map_err(|e| CypherError::Parse(format!("while parsing `{stmt}`: {e}")))?;
+        out.append(&mut v);
+    }
+    Ok(out)
 }
+
 
 /// Stage C: Repo pretty-printer (AST → SQL).
 pub fn render_statements(stmts: &[Statement]) -> String {
