@@ -37,6 +37,11 @@ pub enum CypherError {
 }
 pub type CypherResult<T> = Result<T, CypherError>;
 
+
+
+
+
+
 /// Entry A: Cypher text → provisional SQL text (possibly multiple statements).
 pub fn cypher_to_sql_text(cypher: &str) -> CypherResult<String> {
     let s = cypher.trim();
@@ -56,6 +61,11 @@ pub fn cypher_to_sql_text(cypher: &str) -> CypherResult<String> {
     }
     Err(CypherError::Unsupported(s.to_string()))
 }
+
+
+
+
+
 
 /// Entry B: Parse provisional SQL via repo parser → AST.
 /// Handles multi-statement strings safely.

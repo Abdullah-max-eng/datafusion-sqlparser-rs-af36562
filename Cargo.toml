@@ -66,3 +66,10 @@ pretty_assertions = "1"
 [package.metadata.docs.rs]
 # Document these features on docs.rs
 features = ["serde", "visitor"]
+
+
+
+[[bin]]
+name = "transformer-bin"
+path = "src/bin/transformer.rs"
+
