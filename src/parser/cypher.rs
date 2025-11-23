@@ -170,6 +170,8 @@ pub fn render_statements(stmts: &[Statement]) -> String {
 }
 
 
+
+
 // Stage A helpers: Cypher → SQL text (desugaring).
 /// Desugar a simple MATCH ... RETURN ... into a SELECT.
 /// Supported patterns:
