@@ -1,7 +1,7 @@
 //! Very small Cypher → SQL “desugaring” layer for a nodes(+edges) graph in MySQL.
-//!        Abdullah Fazli 
-//! 
-//  /// you can reference to the sql directory in the graphdb folder, on the go server side 
+//!        Abdullah Fazli
+//!
+//  /// you can reference to the sql directory in the graphdb folder, on the go server side
 // Target table layout (only `nodes` is used here):
 //!   nodes(
 //!       id    BIGINT PK AUTO_INCREMENT,
@@ -10,9 +10,6 @@
 //!       props JSON          NULL
 //!   )
 //!
-
-
-
 
 //! Supported Cypher patterns (case-insensitive):
 //!
@@ -52,8 +49,6 @@
 //!  - Multi-statement strings are split and each piece is parsed into the AST.
 //!
 
-
-
 use thiserror::Error;
 
 use crate::ast::Statement;
@@ -75,35 +70,22 @@ pub enum CypherError {
 /// Convenience alias for fallible Cypher operations.
 pub type CypherResult<T> = Result<T, CypherError>;
 
-
-
-
-
-
-
 // // Entry A: Cypher text provisional SQL text (may be multi-statement). --- this is out main entyr that will call other expernal fucntion (public api )
-
-
-
-
-
 /// Convert a single Cypher statement into SQL text.
-///
 /// This is intentionally very small in scope. It simply looks at the
-/// *shape* of the Cypher string and dispatches to one of the supported
 /// patterns (MATCH/CREATE with optional SET/DELETE).
 pub fn cypher_to_sql_text(cypher: &str) -> CypherResult<String> {
     // Trim whitespace and normalize for simple prefix checks.
     let trimmed = cypher.trim();
     let upper = trimmed.to_uppercase();
-
     // Basic pattern routing:
     if upper.starts_with("MATCH ") {
-        // MATCH with SET → UPDATE (and optional SELECT)
+        // println!("inside match");
+        // MATCH with SET ---- UPDATE (and optional SELECT)
         if upper.contains(" SET ") {
             return match_set_to_update_select(trimmed);
         }
-               // MATCH with DELETE → DELETE (and optional ROW_COUNT() SELECT)
+        // MATCH with DELETE will be = DELETE (and optional ROW_COUNT() SELECT)
         if upper.contains(" DELETE ") {
             return match_delete_to_delete_select(trimmed);
         }
@@ -119,10 +101,6 @@ pub fn cypher_to_sql_text(cypher: &str) -> CypherResult<String> {
     Err(CypherError::Unsupported(trimmed.to_string()))
 }
 
-
-
-
-//. ----------- ---- 
 // Entry B: Cypher to ast
 // Handles multi-statement SQL safely.
 /// Convert Cypher text into a vector of SQL AST statements.
@@ -131,23 +109,23 @@ pub fn cypher_to_sql_text(cypher: &str) -> CypherResult<String> {
 ///   2. Split SQL on `;`.
 ///   3. Parse each piece into one or more `Statement`s using the repo parser.
 
-
 pub fn cypher_to_sql_ast(cypher: &str) -> CypherResult<Vec<Statement>> {
     let sql = cypher_to_sql_text(cypher)?;
     let dialect = MySqlDialect {};
     let mut stmts: Vec<Statement> = Vec::new();
+
     for part in sql.split(';') {
         let stmt = part.trim();
         if stmt.is_empty() {
             continue;
         }
-        let mut parsed = Parser::parse_sql(&dialect, stmt).map_err(|e| CypherError::Parse(format!("while parsing `{stmt}`: {e}")))?;  // tgus us guvubg us an array
-        // printls(parsed); 
+        let mut parsed = Parser::parse_sql(&dialect, stmt)
+            .map_err(|e| CypherError::Parse(format!("while parsing `{stmt}`: {e}")))?; // tgus us guvubg us an array
+                                                                                       // printls(parsed);
         stmts.append(&mut parsed);
     }
     Ok(stmts)
 }
-
 
 // entry 3: AST === final SQL text
 // One statement per line, each ending with `;`.
@@ -168,9 +146,6 @@ pub fn render_statements(stmts: &[Statement]) -> String {
 
     buf
 }
-
-
-
 
 // Stage A helpers: Cypher → SQL text (desugaring).
 /// Desugar a simple MATCH ... RETURN ... into a SELECT.
@@ -247,8 +222,7 @@ fn match_to_select(source: &str) -> CypherResult<String> {
     ))
 }
 
-/// CREATE ... RETURN n  → INSERT; SELECT ... LIMIT 1
-///
+/// CREATE ... RETURN n  → INSERT; SELECT ... LIMIT 1///
 /// We do a two-step:
 ///   1. INSERT a row into `nodes`.
 ///   2. SELECT the inserted row using label + optional name filter.
@@ -296,7 +270,6 @@ fn create_to_insert_select(source: &str) -> CypherResult<String> {
 }
 
 /// MATCH ... SET ... [RETURN n] → UPDATE; [SELECT ...]
-///
 /// We:
 ///   1. Build a WHERE clause from label + optional {props}.
 ///   2. Parse the SET list into column/JSON updates.
@@ -380,9 +353,6 @@ fn match_set_to_update_select(source: &str) -> CypherResult<String> {
     })
 }
 
-
-
-
 fn match_delete_to_delete_select(source: &str) -> CypherResult<String> {
     let upper = source.to_uppercase();
     let label = parse_label(source)?;
@@ -408,16 +378,9 @@ fn match_delete_to_delete_select(source: &str) -> CypherResult<String> {
     }
 }
 
-
-// 
-
-
-
+// ==========================================================================================================================================================
 // JSON helpers for `nodes.props`.
-// ==========================================================================
-
 /// Build WHERE predicates from property lists.
-///
 /// `name` is mapped to the `name` column; all other keys are pulled from JSON.
 fn prop_predicates(cols: &[String], vals: &[String]) -> Vec<String> {
     cols.iter()
@@ -438,7 +401,6 @@ fn prop_predicates(cols: &[String], vals: &[String]) -> Vec<String> {
 }
 
 /// Build a SELECT expression to read a JSON property as plain text.
-///
 /// e.g. `JSON_UNQUOTE(JSON_EXTRACT(props, '$."city"'))`
 fn json_get_expr(prop: &str) -> String {
     format!(
@@ -460,7 +422,7 @@ fn json_object(cols: &[String], vals: &[String]) -> String {
 }
 
 /// Split properties into optional `name` and "everything else".
-///
+
 /// Returns:
 ///   (maybe_name_value, other_keys, other_values)
 fn split_name_and_others<'a>(
@@ -483,12 +445,7 @@ fn split_name_and_others<'a>(
     (name_value, other_keys, other_vals)
 }
 
-
-
-// ==========================================================================
-
 /// Extract the label after ':' up to the first delimiter: space, '{', or ')'.
-///
 /// For example:
 ///   "MATCH (n:Person {name:'Alice'})" → "Person"
 fn parse_label(s: &str) -> CypherResult<String> {
@@ -517,24 +474,22 @@ fn parse_label(s: &str) -> CypherResult<String> {
 /// Produce a safe SQL identifier, quoting with backticks only when needed.
 /// This tries to stay out of the way for "normal" identifiers.
 fn ident_sql(name: &str) -> String {
-    if name.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_') {
+    if name
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+    {
         name.to_string()
     } else {
         format!("`{}`", name.replace('`', "``"))
     }
 }
 
-
-
 /// Single-quote a string for SQL, escaping embedded single quotes.
 fn sql_str(v: &str) -> String {
     format!("'{}'", v.replace('\'', "''"))
 }
 
-
-
 /// Parse a simple `{k1:'v1', k2:'v2'}` property list.
-
 /// This is deliberately small and strict:
 ///   - Only `key:'value'` pairs.
 ///   - Comma-separated.
@@ -579,7 +534,6 @@ fn parse_kv_props(s: &str) -> CypherResult<(Vec<String>, Vec<String>)> {
 }
 
 /// Parse a SET list like: "n.k1='x', n.k2='y'".
-///
 /// We only support string literals on the right-hand side.
 fn parse_set_list(s: &str) -> CypherResult<Vec<(String, String)>> {
     let mut out = Vec::new();
@@ -619,7 +573,6 @@ fn parse_set_list(s: &str) -> CypherResult<Vec<(String, String)>> {
 }
 
 /// Split something like "prop AS alias" into ("prop", Some("alias")).
-///
 /// If there's no AS keyword, the alias is `None`.
 fn split_as(s: &str) -> (&str, Option<&str>) {
     if let Some(idx) = s.to_uppercase().find(" AS ") {
@@ -645,17 +598,14 @@ fn need_between(s: &str, left: &str, right: &str, msg: &str) -> CypherResult<Str
         .ok_or_else(|| CypherError::Parse(msg.into()))
 }
 
-
 // ==========================================================================
 // Unit tests.
 // ==========================================================================
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     /// Normalize a string: lowercase + collapse whitespace.
-    ///
     /// Handy for slightly fuzzy substring checks in tests.
     fn norm(s: &str) -> String {
         let mut out = String::new();
@@ -727,17 +677,6 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn create_insert_then_select() {
-    //     assert_ast_contains_all(
-    //         "CREATE (n:Person {name:'Alice', city:'ATX'}) RETURN n",
-    //         &[
-    //             "insert into nodes (label, name, props) values ('Person','Alice', json_object('city','ATX'))",
-    //             "select * from nodes where label = 'Person' and name = 'Alice' limit 1",
-    //         ],
-    //     );
-    // }
-
     #[test]
     fn update_name_and_json_then_select() {
         assert_text_contains_all(
@@ -754,40 +693,10 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn delete_plain_and_count() {
-    //     assert_text_contains_all(
-    //         "MATCH (n:Person {city:'ATX'}) DELETE n RETURN count(n)",
-    //         &[
-    //             "delete from nodes where label = 'Person' and json_unquote(json_extract(props, '$.\"city\"')) = 'ATX'",
-    //             "select row_count() as `count`",
-    //         ],
-    //     );
-    // }
-
     #[test]
     fn errors_when_missing_return() {
         let err = cypher_to_sql_text("MATCH (n:Person)").unwrap_err();
         let msg = format!("{err}");
         assert!(msg.to_lowercase().contains("missing return"));
     }
-
-    // #[test]
-    // fn unsupported_relationship_patterns() {
-    //     let err = cypher_to_sql_text("MATCH (a:Person)-[:ACTED_IN]->(m:Movie) RETURN a,m").unwrap_err();
-    //     let msg = format!("{err}");
-    //     assert!(msg.to_lowercase().contains("unsupported"));
-    // }
-
-    // #[test]
-    // fn quote_escaping() {
-    //     assert_text_contains_all(
-    //         "MATCH (n:Person {nickname:'O\\'Brien'}) RETURN n.nickname",
-    //         &[
-    //             "json_unquote(json_extract(props, '$.\"nickname\"'))",
-    //             // in SQL the single quote must be doubled:
-    //             "='O''Brien'",
-    //         ],
-    //     );
-    // }
 }

@@ -1,5 +1,5 @@
+use sqlparser::parser::cypher::{cypher_to_sql_ast, cypher_to_sql_text, render_statements};
 use std::io::Read;
-use sqlparser::parser::cypher::{cypher_to_sql_ast, render_statements, cypher_to_sql_text};
 
 fn main() {
     // Read the whole stdin (the Cypher text) into buf
@@ -32,7 +32,7 @@ fn main() {
             eprintln!("=====================================================================");
 
             // Final output (stdout) – this is what the Go server consumes
-            println!("{}", sql);
+            println!("{}->>>>>>>>>>>>>", sql);
         }
         Err(e) => {
             eprintln!("transform error: {e}");
